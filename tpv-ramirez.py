@@ -1,10 +1,40 @@
 import sqlite3
-import streamlit as datetime_mod
 from datetime import datetime
 import streamlit as st
 
-# Configuración de la página
-st.set_page_config(page_title="Multi Servicios Ramirez - TPV", layout="wide")
+# Configuración de página en modo ancho para aprovechar toda la pantalla como un TPV real
+st.set_page_config(page_title="Terminal Punto de Venta - Multi Servicios Ramirez", layout="wide")
+
+# Estilos CSS personalizados para emular la interfaz de la foto (colores, paneles y estética de TPV clásico)
+st.markdown("""
+    <style>
+    .main { background-color: #e6e6e6; }
+    .tpv-header {
+        background-color: #dcdcdc;
+        border: 2px solid #b0b0b0;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    .display-total {
+        background-color: #000000;
+        color: #00ffcc;
+        font-size: 50px;
+        font-weight: bold;
+        text-align: right;
+        padding: 15px;
+        border: 4px solid #d97706;
+        border-radius: 8px;
+        font-family: monospace;
+    }
+    .panel-caja {
+        background-color: #f0f0f0;
+        border: 2px solid #c0c0c0;
+        padding: 15px;
+        border-radius: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 DATABASE = 'tienda.db'
 
@@ -16,8 +46,6 @@ def get_connection():
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # Tabla de productos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,8 +57,6 @@ def init_db():
             iva INTEGER DEFAULT 21 CHECK(iva IN (21, 10, 4))
         )
     ''')
-    
-    # Carga inicial si está vacío
     cursor.execute('SELECT COUNT(*) FROM productos')
     if cursor.fetchone()[0] == 0:
         productos_iniciales = [
@@ -38,7 +64,6 @@ def init_db():
             ('000000000002', 'GANDULES VERDES CON COCO GOYA', 6.00, 2.11, 2.72, 4),
             ('000000000003', 'OREGANO RANCHERO EN POLVO 90GR', 12.00, 0.00, 2.47, 10),
             ('000000000004', 'FRIJOLES NEGROS PLEBEYO 400GR', 0.00, 0.00, 2.06, 4),
-            ('000000000020', 'COCA COLA LATA 330 ML', 61.00, 0.61, 1.23, 21),
             ('8410199026418', 'CERVEZA POKER 330ML', 10.00, 1.50, 2.06, 21),
         ]
         cursor.executemany('''
@@ -50,135 +75,130 @@ def init_db():
 
 init_db()
 
-# Interfaz principal
-st.title("🛒 Multi Servicios Ramirez - TPV")
-
-# Selector de Rol en la barra lateral
-rol = st.sidebar.selectbox("Rol de Usuario", ["Empleado", "Administrador"])
-cajero_nombre = st.sidebar.text_input("Nombre del Cajero", "RAFELIN MENDEZ")
-
-conn = get_connection()
-
-# Sección de Búsqueda y Lector de Códigos
-st.subheader("🔍 Búsqueda de Productos / Lector de Barras")
-busqueda_input = st.text_input("Escanee el código de barras o escriba el nombre del artículo:", "")
-
-query = "SELECT * FROM productos WHERE 1=1"
-params = []
-
-if busqueda_input:
-    query += " AND (codigo = ? OR nombre LIKE ?)"
-    params = [busqueda_input, f"%{busqueda_input}%"]
-else:
-    # Paginación visual: muestra solo 10 por defecto en pantalla para mantener la app ligera
-    query += " LIMIT 10"
-
-cursor = conn.cursor()
-cursor.execute(query, params)
-productos_visibles = cursor.fetchall()
-
-st.write(f"Mostrando {len(productos_visibles)} productos en vista rápida (el inventario completo está guardado en el sistema):")
-
-# Tabla interactiva o listado
-for p in productos_visibles:
-    precio_con_iva = round(p['precio_base'] * (1 + (p['iva'] / 100.0)), 2)
-    cols = st.columns([2, 4, 1, 1, 1])
-    cols[0].text(p['codigo'])
-    cols[1].text(p['nombre'])
-    cols[2].text(f"{precio_con_iva:.2f} €")
-    cols[3].text(f"Stock: {p['existencias']}")
-    
-    if rol == "Administrador":
-        nuevo_precio = cols[4].number_input("Precio Base", value=p['precio_base'], key=f"p_{p['id']}")
-        if nuevo_precio != p['precio_base']:
-            cursor.execute("UPDATE productos SET precio_base = ? WHERE id = ?", (nuevo_precio, p['id']))
-            conn.commit()
-
-# Carrito de Venta simulado
-st.markdown("---")
-st.subheader("🛍️ Registrar Venta y Generar Ticket")
-
+# Inicializar carrito de compras en sesión
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-codigo_agregar = st.text_input("Añadir al carrito por código exacto o pistola:")
-cantidad_agregar = st.number_input("Cantidad", min_value=1.0, value=1.0, step=1.0)
+conn = get_connection()
+cursor = conn.cursor()
 
-if st.button("Añadir Artículo"):
-    cursor.execute("SELECT * FROM productos WHERE codigo = ?", (codigo_agregar,))
-    prod_encontrado = cursor.fetchone()
-    if prod_encontrado:
-        st.session_state.carrito.append({
-            'codigo': prod_encontrado['codigo'],
-            'nombre': prod_encontrado['nombre'],
-            'precio_base': prod_encontrado['precio_base'],
-            'iva': float(prod_encontrado['iva']),
-            'cantidad': cantidad_agregar
-        })
-        st.success(f"Añadido: {prod_encontrado['nombre']}")
-    else:
-        st.error("Producto no encontrado con ese código.")
+# --- CABECERA ESTILO TPV (Similar a la foto) ---
+col_logo, col_info, col_visor = st.columns([2, 3, 3])
 
-if st.session_state.carrito:
-    st.write("### Artículos en el Ticket Actual:")
-    total_general = 0.0
-    desglose_iva = {21.0: {'base': 0.0, 'cuota': 0.0}, 10.0: {'base': 0.0, 'cuota': 0.0}, 4.0: {'base': 0.0, 'cuota': 0.0}}
-    
-    for idx, item in enumerate(st.session_state.carrito):
-        importe_base = round(item['precio_base'] * item['cantidad'], 2)
-        total_general += importe_base * (1 + item['iva'] / 100.0)
-        desglose_iva[item['iva']]['base'] += importe_base
-        desglose_iva[item['iva']]['cuota'] += importe_base * (item['iva'] / 100.0)
-        st.text(f"- {item['cantidad']}x {item['nombre']} ({item['precio_base']}€ base) = {importe_base}€")
+with col_logo:
+    st.markdown("""
+        <div style="border: 2px solid #d97706; padding: 10px; background: white; text-align: center; border-radius: 5px;">
+            <h3 style="margin:0; color:#1e3a8a; font-size: 18px;">MULTI SERVICIOS RAMIREZ</h3>
+            <p style="margin:0; font-size: 12px; color: gray;">Terminal Punto de Venta - León</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    efectivo_entregado = st.number_input("Efectivo Entregado (€)", min_value=0.0, value=float(total_general))
-    
-    if st.button("🖨️ Imprimir Ticket de Venta"):
-        cambio = round(efectivo_entregado - total_general, 2) if efectivo_entregado >= total_general else 0.0
-        fecha_actual = datetime.now().strftime("%d/%m/%Y")
-        hora_actual = datetime.now().strftime("%H:%M")
-        
-        # Estructura idéntica al ticket físico de tu foto
-        ticket_texto = f"""
-       MULTI SERVICIOS RAMIREZ
-          AVDA DR FLEMING 9
-          24009 LEON ESPANA
+with col_info:
+    fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+    st.markdown(f"""
+        <div class="tpv-header">
+            <span style="font-size: 13px;"><b>Serie de Ticket:</b> T1 (F11)</span><br>
+            <span style="font-size: 13px;"><b>Fecha:</b> {fecha_hoy}</span><br>
+            <span style="font-size: 13px;"><b>Dependiente:</b> 2 (F2) - <b>RAFELIN MENDEZ</b></span>
+        </div>
+    """, unsafe_allow_html=True)
 
-Telf. 655766134    NIF  02799425 A
+# Cálculo dinámico del total actual del carrito con IVA incluido
+total_calculado = sum(round(item['precio_base'] * item['cantidad'] * (1 + item['iva'] / 100.0), 2) for item in st.session_state.carrito)
 
-Ticket N° 01T12600002978          {fecha_actual}
-                                    {hora_actual}
-----------------------------------------
-UDS. ARTICULO             PRECIO  IMPORTE
-----------------------------------------
-"""
-        for ti in st.session_state.carrito:
-            imp = round(ti['precio_base'] * ti['cantidad'], 2)
-            ticket_texto += f"{ti['cantidad']:<3} {ti['nombre'][:22]:<22} {ti['precio_base']:>5.2f}€ {imp:>6.2f}€\n"
-            
-        ticket_texto += f"""----------------------------------------
-                  TOTAL        {total_general:.2f} €
-----------------------------------------
-   BASE IMPONIBLE    %IVA        IVA
-"""
-        for porc, vals in desglose_iva.items():
-            if vals['base'] > 0:
-                ticket_texto += f"       {vals['base']:>8.2f} €    {porc:>4.1f}     {vals['cuota']:>6.2f} €\n"
-                
-        ticket_texto += f"""----------------------------------------
-ENTREGADO                {efectivo_entregado:.2f} € CAMBIO      {cambio:.2f} €
-EFECTIVO
-----------------------------------------
-LE ATENDIÓ {cajero_nombre}
+with col_visor:
+    st.markdown(f'<div class="display-total">{total_calculado:.2f}€</div>', unsafe_allow_html=True)
 
-GRACIAS POR SU COMPRA. ES IMPRESCINDIBLE LA
-PRESENTACION DEL TICKET PARA CUALQUIER DEVOLUCION
-"""
-        st.text_area("Ticket Generado para Impresora Térmica:", ticket_texto, height=300)
-        st.success(f"Cambio a devolver al cliente: **{cambio:.2f} €**")
-        
-        if st.button("Limpiar Carrito / Siguiente Venta"):
-            st.session_state.carrito = []
+st.markdown("---")
+
+# --- ZONA DE ENTRADA / LECTOR DE CÓDIGO DE BARRAS ---
+col_input1, col_input2, col_input3 = st.columns([3, 1, 1])
+codigo_o_busqueda = col_input1.text_input("🔍 Código de barras / Buscar artículo:", key="input_codigo", placeholder="Escanee con la pistola o escriba...")
+cantidad_input = col_input2.number_input("Unidades", min_value=1.0, value=1.0, step=1.0)
+
+if col_input3.button("Añadir (Enter)", type="primary"):
+    if codigo_o_busqueda:
+        cursor.execute("SELECT * FROM productos WHERE codigo = ? OR nombre LIKE ?", (codigo_o_busqueda, f"%{codigo_o_busqueda}%"))
+        prod = cursor.fetchone()
+        if prod:
+            st.session_state.carrito.append({
+                'codigo': prod['codigo'],
+                'nombre': prod['nombre'],
+                'precio_base': prod['precio_base'],
+                'iva': float(prod['iva']),
+                'cantidad': cantidad_input
+            })
             st.rerun()
+        else:
+            st.error("Artículo no encontrado.")
+
+# --- CUERPO PRINCIPAL: TABLA DE LÍNEAS DE TICKET ---
+st.markdown("#### 📋 Líneas del Ticket")
+header_cols = st.columns([2, 5, 1, 1, 1, 1])
+header_cols[0].markdown("**Código**")
+header_cols[1].markdown("**Descripción**")
+header_cols[2].markdown("**Unids.**")
+header_cols[3].markdown("**Precio**")
+header_cols[4].markdown("**%IVA**")
+header_cols[5].markdown("**Importe**")
+
+st.markdown("<hr style='margin: 0px 0px 10px 0px;'>", unsafe_allow_html=True)
+
+base_imponible_total = 0.0
+iva_total = 0.0
+
+for idx, item in enumerate(st.session_state.carrito):
+    importe_con_iva = round(item['precio_base'] * item['cantidad'] * (1 + item['iva'] / 100.0), 2)
+    imp_base_item = round(item['precio_base'] * item['cantidad'], 2)
+    cuota_iva_item = round(imp_base_item * (item['iva'] / 100.0), 2)
+    
+    base_imponible_total += imp_base_item
+    iva_total += cuota_iva_item
+    
+    row_cols = st.columns([2, 5, 1, 1, 1, 1])
+    row_cols[0].text(item['codigo'])
+    row_cols[1].text(item['nombre'])
+    row_cols[2].text(str(item['cantidad']))
+    row_cols[3].text(f"{item['precio_base']:.2f}€")
+    row_cols[4].text(f"{item['iva']}%")
+    row_cols[5].text(f"{importe_con_iva:.2f}€")
+
+st.markdown("---")
+
+# --- ZONA INFERIOR: BOTONES DE ACCIÓN RÁPIDA Y RESUMEN DE TOTALES ---
+col_botones, col_resumen = st.columns([4, 3])
+
+with col_botones:
+    st.markdown("**Atajos de Teclado / Funciones:**")
+    b1, b2, b3, b4 = st.columns(4)
+    if b1.button("F5: Venta"):
+        if st.session_state.carrito:
+            st.success("¡Venta procesada con éxito!")
+    if b2.button("F6: Cancelar"):
+        st.session_state.carrito = []
+        st.rerun()
+    if b3.button("F7: Ticket"):
+        st.info("Imprimiendo ticket de caja...")
+    if b4.button("Esc: Cerrar"):
+        st.warning("Sesión bloqueada.")
+
+with col_resumen:
+    st.markdown("""
+        <div class="panel-caja">
+    """, unsafe_allow_html=True)
+    
+    r1, r2 = st.columns(2)
+    r1.text("Base imponible:")
+    r2.text(f"{base_imponible_total:.2f} €")
+    
+    r1, r2 = st.columns(2)
+    r1.text("IVA Total:")
+    r2.text(f"{iva_total:.2f} €")
+    
+    r1, r2 = st.columns(2)
+    r1.markdown("<b>TOTAL:</b>")
+    r2.markdown(f"<b>{total_calculado:.2f} €</b>")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 conn.close()
