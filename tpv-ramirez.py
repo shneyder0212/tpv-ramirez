@@ -41,10 +41,11 @@ def init_db():
 init_db()
 
 class GestionInventarioWindow:
-    def __init__(self, parent):
+    def __init__(self, parent, callback_actualizar):
+        self.callback_actualizar = callback_actualizar
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Artículos, Costos e IVA - Multi Servicios Ramirez")
-        self.window.geometry("900x500")
+        self.window.geometry("950x520")
         self.window.configure(bg="#dcdcdc")
         
         # Tabla de productos
@@ -63,11 +64,11 @@ class GestionInventarioWindow:
         self.tree_inv.heading("iva", text="IVA (%)")
 
         self.tree_inv.column("id", width=40, anchor="center")
-        self.tree_inv.column("codigo", width=120)
-        self.tree_inv.column("nombre", width=300)
-        self.tree_inv.column("stock", width=70, anchor="center")
-        self.tree_inv.column("costo", width=90, anchor="e")
-        self.tree_inv.column("precio_base", width=110, anchor="e")
+        self.tree_inv.column("codigo", width=130)
+        self.tree_inv.column("nombre", width=320)
+        self.tree_inv.column("stock", width=60, anchor="center")
+        self.tree_inv.column("costo", width=80, anchor="e")
+        self.tree_inv.column("precio_base", width=100, anchor="e")
         self.tree_inv.column("iva", width=60, anchor="center")
 
         self.tree_inv.pack(fill="both", expand=True, side="left")
@@ -76,16 +77,16 @@ class GestionInventarioWindow:
         scrollbar.pack(side="right", fill="y")
         self.tree_inv.configure(yscrollcommand=scrollbar.set)
 
-        # Panel de formulario abajo para añadir/editar
+        # Panel de formulario abajo
         frame_form = tk.Frame(self.window, bg="#ececec", bd=2, relief="groove")
         frame_form.pack(fill="x", padx=10, pady=10)
 
         tk.Label(frame_form, text="Código:", bg="#ececec", font=("Arial", 9, "bold")).grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.txt_cod = tk.Entry(frame_form, width=15)
+        self.txt_cod = tk.Entry(frame_form, width=16)
         self.txt_cod.grid(row=0, column=1, padx=5, pady=5)
 
         tk.Label(frame_form, text="Descripción:", bg="#ececec", font=("Arial", 9, "bold")).grid(row=0, column=2, padx=5, pady=5, sticky="w")
-        self.txt_nom = tk.Entry(frame_form, width=25)
+        self.txt_nom = tk.Entry(frame_form, width=28)
         self.txt_nom.grid(row=0, column=3, padx=5, pady=5)
 
         tk.Label(frame_form, text="Costo (€):", bg="#ececec", font=("Arial", 9, "bold")).grid(row=0, column=4, padx=5, pady=5, sticky="w")
@@ -123,7 +124,7 @@ class GestionInventarioWindow:
             pvp = float(self.txt_pvp.get())
             iva = int(self.combo_iva.get())
         except ValueError:
-            messagebox.showerror("Error", "Revise que los valores numéricos de costo, precio e IVA sean correctos.")
+            messagebox.showerror("Error", "Revise que los valores de costo, precio e IVA sean numéricos válidos.")
             return
 
         if not codigo or not nombre:
@@ -182,7 +183,7 @@ class TPVApp:
         frame_input.pack(fill="x", padx=10, pady=5)
 
         tk.Label(frame_input, text="Código:", bg="#ececec", font=("Arial", 9, "bold")).pack(side="left", padx=5)
-        self.entry_codigo = tk.Entry(frame_input, font=("Courier New", 11), width=20)
+        self.entry_codigo = tk.Entry(frame_input, font=("Courier New", 11), width=22)
         self.entry_codigo.pack(side="left", padx=5, pady=5)
         self.entry_codigo.focus()
         self.entry_codigo.bind("<Return>", self.agregar_producto)
@@ -226,7 +227,7 @@ class TPVApp:
         tk.Button(frame_botones, text="F7  Ticket", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.imprimir_ticket).grid(row=0, column=1, padx=2, pady=2)
         tk.Button(frame_botones, text="F6  Cancelar", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.cancelar_venta).grid(row=1, column=0, padx=2, pady=2)
         tk.Button(frame_botones, text="F8  Caja", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=lambda: messagebox.showinfo("Caja", "Caja abierta")).grid(row=1, column=1, padx=2, pady=2)
-        tk.Button(frame_botones, text="F10 Artículos/IVA", bg="#b5651d", fg="white", font=("Arial", 9, "bold"), width=25, command=self.abrir_gestion).grid(row=2, column=0, columnspan=2, padx=2, pady=2)
+        tk.Button(frame_botones, text="F10 Artículos / IVA", bg="#b5651d", fg="white", font=("Arial", 9, "bold"), width=25, command=self.abrir_gestion).grid(row=2, column=0, columnspan=2, padx=2, pady=2)
 
         frame_totales = tk.Frame(frame_bottom, bg="#ececec", bd=2, relief="groove", padx=10, pady=5)
         frame_totales.pack(side="right")
@@ -243,7 +244,7 @@ class TPVApp:
         self.lbl_total = tk.Label(frame_totales, text="0.00", bg="white", font=("Courier New", 12, "bold"), fg="#990000", width=15, anchor="e", relief="sunken")
         self.lbl_total.grid(row=2, column=1, padx=5, pady=2)
 
-        # Atajos
+        # Atajos de teclado globales
         root.bind("<F5>", lambda event: self.procesar_venta())
         root.bind("<F6>", lambda event: self.cancelar_venta())
         root.bind("<F7>", lambda event: self.imprimir_ticket())
@@ -252,7 +253,7 @@ class TPVApp:
         root.bind("<Escape>", lambda event: root.quit())
 
     def abrir_gestion(self):
-        GestionInventarioWindow(self.root)
+        GestionInventarioWindow(self.root, None)
 
     def agregar_producto(self, event=None):
         codigo = self.entry_codigo.get().strip()
@@ -287,7 +288,8 @@ class TPVApp:
             self.entry_unids.insert(0, "1.00")
             self.actualizar_vista()
         else:
-            messagebox.showerror("Error", "Artículo no encontrado. Pulse F10 para agregarlo al inventario.")
+            messagebox.showerror("Error", "Artículo no encontrado. Pulse F10 para agregarlo al inventario con su costo, precio y su IVA.")
+            self.entry_codigo.select_range(0, tk.END)
 
     def actualizar_vista(self):
         for row in self.tree.get_children():
@@ -319,6 +321,7 @@ class TPVApp:
         self.lbl_base.config(text=f"{base_total:.2f}")
         self.lbl_iva.config(text=f"{iva_total:.2f}")
         self.lbl_total.config(text=f"{general_total:.2f}")
+        self.entry_codigo.focus()
 
     def cancelar_venta(self):
         self.carrito = []
