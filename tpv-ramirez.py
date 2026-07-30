@@ -3,7 +3,7 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-DATABASE = 'tienda.db'
+DATABASE = 'ramirez_tpv.db'
 
 def get_connection():
     conn = sqlite3.connect(DATABASE)
@@ -26,17 +26,17 @@ def init_db():
     ''')
     cursor.execute('SELECT COUNT(*) FROM productos')
     if cursor.fetchone()[0] == 0:
-        # PRODUCTOS REALES EXTRAÍDOS DIRECTAMENTE DE TUS FOTOS DE INVENTARIO
+        # PRODUCTOS REALES EXTRAÍDOS DE TUS FOTOS DE INVENTARIO
         productos_iniciales = [
-            ('000000000001', 'SAZON LIQUIDO RANCHERO 400ML', 0.00, 1.80, 2.47, 21),
-            ('000000000002', 'GANDULES VERDES CON COCO GOYA', 6.00, 2.11, 2.72, 4),
-            ('000000000003', 'OREGANO RANCHERO EN POLVO 90GR', 12.00, 1.90, 2.47, 10),
-            ('000000000004', 'FRIJOLES NEGROS PLEBEYO 400GR', 0.00, 1.50, 2.06, 4),
-            ('8410199026418', 'CERVEZA POKER 330ML', 10.00, 1.50, 2.06, 21),
-            ('000000000006', 'AGUA VIVO 50ml', 10.00, 0.50, 1.00, 21),
-            ('7702001001234', 'ARROZ DIANA BLANCO 1KG', 25.00, 1.10, 1.50, 4),
-            ('7702002004567', 'ACEITE VEGETAL 1000CC', 15.00, 2.80, 3.75, 21),
-            ('7702003007890', 'PAN TAJADO BIMBO', 8.00, 1.20, 1.65, 10),
+            ('000000000001', 'SAZON LIQUIDO RANCHERO 400ML', 10.0, 1.80, 2.47, 21),
+            ('000000000002', 'GANDULES VERDES CON COCO GOYA', 6.0, 2.11, 2.72, 4),
+            ('000000000003', 'OREGANO RANCHERO EN POLVO 90GR', 12.0, 1.90, 2.47, 10),
+            ('000000000004', 'FRIJOLES NEGROS PLEBEYO 400GR', 8.0, 1.50, 2.06, 4),
+            ('8410199026418', 'CERVEZA POKER 330ML', 24.0, 1.50, 2.06, 21),
+            ('000000000006', 'AGUA VIVO 50ml', 15.0, 0.50, 1.00, 21),
+            ('7702001001234', 'ARROZ DIANA BLANCO 1KG', 30.0, 1.10, 1.50, 4),
+            ('7702002004567', 'ACEITE VEGETAL 1000CC', 10.0, 2.80, 3.75, 21),
+            ('7702003007890', 'PAN TAJADO BIMBO', 12.0, 1.20, 1.65, 10),
         ]
         cursor.executemany('''
             INSERT INTO productos (codigo, nombre, existencias, costo_un, precio_base, iva)
@@ -47,83 +47,92 @@ def init_db():
 
 init_db()
 
-class GestionInventarioWindow:
-    def __init__(self, parent, callback_actualizar):
-        self.callback_actualizar = callback_actualizar
+class VentanaGestionArticulos:
+    def __init__(self, parent):
         self.window = tk.Toplevel(parent)
-        self.window.title("Gestión de Artículos, Costos e IVA - Multi Servicios Ramirez")
-        self.window.geometry("980x540")
-        self.window.configure(bg="#dcdcdc")
-        
-        # Tabla de productos
-        frame_tabla = tk.Frame(self.window, bg="white")
-        frame_tabla.pack(fill="both", expand=True, padx=10, pady=10)
+        self.window.title("Gestión de Inventario, Costes e IVA - Multi Servicios Ramirez")
+        self.window.geometry("1000x580")
+        self.window.configure(bg="#1e1e1e")
 
-        columns = ("id", "codigo", "nombre", "stock", "costo", "precio_base", "iva")
-        self.tree_inv = ttk.Treeview(frame_tabla, columns=columns, show="headings", height=12)
-        
-        self.tree_inv.heading("id", text="ID")
-        self.tree_inv.heading("codigo", text="Código")
-        self.tree_inv.heading("nombre", text="Descripción")
-        self.tree_inv.heading("stock", text="Stock")
-        self.tree_inv.heading("costo", text="Costo (€)")
-        self.tree_inv.heading("precio_base", text="P. Venta Base (€)")
-        self.tree_inv.heading("iva", text="IVA (%)")
+        # Título sección
+        lbl_tit = tk.Label(self.window, text="PANEL DE CONTROL DE ARTÍCULOS", bg="#1e1e1e", fg="#00ffcc", font=("Segoe UI", 14, "bold"))
+        lbl_tit.pack(pady=10)
 
-        self.tree_inv.column("id", width=40, anchor="center")
-        self.tree_inv.column("codigo", width=130)
-        self.tree_inv.column("nombre", width=340)
-        self.tree_inv.column("stock", width=60, anchor="center")
-        self.tree_inv.column("costo", width=80, anchor="e")
-        self.tree_inv.column("precio_base", width=100, anchor="e")
-        self.tree_inv.column("iva", width=60, anchor="center")
+        # Tabla estilo moderno oscuro
+        frame_tabla = tk.Frame(self.window, bg="#1e1e1e")
+        frame_tabla.pack(fill="both", expand=True, padx=15, pady=5)
 
-        self.tree_inv.pack(fill="both", expand=True, side="left")
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Treeview", background="#2d2d2d", foreground="white", fieldbackground="#2d2d2d", rowheight=25, font=("Segoe UI", 10))
+        style.configure("Treeview.Heading", background="#333333", foreground="#00ffcc", font=("Segoe UI", 10, "bold"))
+
+        columns = ("id", "codigo", "nombre", "stock", "costo", "precio", "iva")
+        self.tree = ttk.Treeview(frame_tabla, columns=columns, show="headings", height=12)
         
-        scrollbar = ttk.Scrollbar(frame_tabla, orient="vertical", command=self.tree_inv.yview)
+        self.tree.heading("id", text="ID")
+        self.tree.heading("codigo", text="Código de Barras")
+        self.tree.heading("nombre", text="Descripción del Artículo")
+        self.tree.heading("stock", text="Stock")
+        self.tree.heading("costo", text="Costo (€)")
+        self.tree.heading("precio", text="P. Venta Base (€)")
+        self.tree.heading("iva", text="IVA (%)")
+
+        self.tree.column("id", width=40, anchor="center")
+        self.tree.column("codigo", width=140)
+        self.tree.column("nombre", width=340)
+        self.tree.column("stock", width=70, anchor="center")
+        self.tree.column("costo", width=90, anchor="e")
+        self.tree.column("precio", width=110, anchor="e")
+        self.tree.column("iva", width=70, anchor="center")
+
+        self.tree.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(frame_tabla, orient="vertical", command=self.tree.yview)
         scrollbar.pack(side="right", fill="y")
-        self.tree_inv.configure(yscrollcommand=scrollbar.set)
+        self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Panel de formulario abajo
-        frame_form = tk.Frame(self.window, bg="#ececec", bd=2, relief="groove")
-        frame_form.pack(fill="x", padx=10, pady=10)
+        # Formulario de alta / modificación
+        frame_form = tk.Frame(self.window, bg="#2d2d2d", bd=2, relief="groove")
+        frame_form.pack(fill="x", padx=15, pady=15)
 
-        tk.Label(frame_form, text="Código:", bg="#ececec", font=("Arial", 9, "bold")).grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.txt_cod = tk.Entry(frame_form, width=16)
-        self.txt_cod.grid(row=0, column=1, padx=5, pady=5)
+        tk.Label(frame_form, text="Código:", bg="#2d2d2d", fg="white", font=("Segoe UI", 9, "bold")).grid(row=0, column=0, padx=8, pady=8, sticky="w")
+        self.txt_cod = tk.Entry(frame_form, font=("Segoe UI", 10), width=16)
+        self.txt_cod.grid(row=0, column=1, padx=5, pady=8)
 
-        tk.Label(frame_form, text="Descripción:", bg="#ececec", font=("Arial", 9, "bold")).grid(row=0, column=2, padx=5, pady=5, sticky="w")
-        self.txt_nom = tk.Entry(frame_form, width=30)
-        self.txt_nom.grid(row=0, column=3, padx=5, pady=5)
+        tk.Label(frame_form, text="Descripción:", bg="#2d2d2d", fg="white", font=("Segoe UI", 9, "bold")).grid(row=0, column=2, padx=8, pady=8, sticky="w")
+        self.txt_nom = tk.Entry(frame_form, font=("Segoe UI", 10), width=28)
+        self.txt_nom.grid(row=0, column=3, padx=5, pady=8)
 
-        tk.Label(frame_form, text="Costo (€):", bg="#ececec", font=("Arial", 9, "bold")).grid(row=0, column=4, padx=5, pady=5, sticky="w")
-        self.txt_costo = tk.Entry(frame_form, width=8)
-        self.txt_costo.grid(row=0, column=5, padx=5, pady=5)
+        tk.Label(frame_form, text="Costo (€):", bg="#2d2d2d", fg="white", font=("Segoe UI", 9, "bold")).grid(row=0, column=4, padx=8, pady=8, sticky="w")
+        self.txt_costo = tk.Entry(frame_form, font=("Segoe UI", 10), width=8)
+        self.txt_costo.grid(row=0, column=5, padx=5, pady=8)
 
-        tk.Label(frame_form, text="P. Venta (€):", bg="#ececec", font=("Arial", 9, "bold")).grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.txt_pvp = tk.Entry(frame_form, width=8)
-        self.txt_pvp.grid(row=1, column=1, padx=5, pady=5)
+        tk.Label(frame_form, text="P. Venta Base (€):", bg="#2d2d2d", fg="white", font=("Segoe UI", 9, "bold")).grid(row=1, column=0, padx=8, pady=8, sticky="w")
+        self.txt_pvp = tk.Entry(frame_form, font=("Segoe UI", 10), width=8)
+        self.txt_pvp.grid(row=1, column=1, padx=5, pady=8, sticky="w")
 
-        tk.Label(frame_form, text="IVA (%):", bg="#ececec", font=("Arial", 9, "bold")).grid(row=1, column=2, padx=5, pady=5, sticky="w")
-        self.combo_iva = ttk.Combobox(frame_form, values=[21, 10, 4], width=6, state="readonly")
-        self.combo_iva.grid(row=1, column=3, padx=5, pady=5)
+        tk.Label(frame_form, text="Tipo IVA (%):", bg="#2d2d2d", fg="white", font=("Segoe UI", 9, "bold")).grid(row=1, column=2, padx=8, pady=8, sticky="w")
+        self.combo_iva = ttk.Combobox(frame_form, values=[21, 10, 4], width=8, state="readonly", font=("Segoe UI", 10))
+        self.combo_iva.grid(row=1, column=3, padx=5, pady=8, sticky="w")
         self.combo_iva.set(21)
 
-        tk.Button(frame_form, text="Guardar / Añadir Producto", bg="#b5651d", fg="white", font=("Arial", 9, "bold"), command=self.guardar_producto).grid(row=1, column=4, columnspan=2, padx=10, pady=5)
+        btn_guardar = tk.Button(frame_form, text="Guardar / Actualizar", bg="#0083b0", fg="white", font=("Segoe UI", 10, "bold"), padx=10, pady=2, command=self.guardar)
+        btn_guardar.grid(row=1, column=4, columnspan=2, padx=10, pady=8)
 
-        self.cargar_datos()
+        self.cargar_tabla()
 
-    def cargar_datos(self):
-        for row in self.tree_inv.get_children():
-            self.tree_inv.delete(row)
+    def cargar_tabla(self):
+        for row in self.tree.get_children():
+            self.tree.delete(row)
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM productos")
-        for row in cursor.fetchall():
-            self.tree_inv.insert("", "end", values=(row["id"], row["codigo"], row["nombre"], row["existencias"], f"{row['costo_un']:.2f}", f"{row['precio_base']:.2f}", f"{row['iva']}%"))
+        for r in cursor.fetchall():
+            self.tree.insert("", "end", values=(r["id"], r["codigo"], r["nombre"], r["existencias"], f"{r['costo_un']:.2f}", f"{r['precio_base']:.2f}", f"{r['iva']}%"))
         conn.close()
 
-    def guardar_producto(self):
+    def guardar(self):
         codigo = self.txt_cod.get().strip()
         nombre = self.txt_nom.get().strip().upper()
         try:
@@ -131,7 +140,7 @@ class GestionInventarioWindow:
             pvp = float(self.txt_pvp.get())
             iva = int(self.combo_iva.get())
         except ValueError:
-            messagebox.showerror("Error", "Revise que los valores de costo, precio e IVA sean numéricos válidos.")
+            messagebox.showerror("Error", "Los campos numéricos (costo, precio, IVA) deben ser válidos.")
             return
 
         if not codigo or not nombre:
@@ -148,126 +157,143 @@ class GestionInventarioWindow:
                 nombre=excluded.nombre, costo_un=excluded.costo_un, precio_base=excluded.precio_base, iva=excluded.iva
             ''', (codigo, nombre, costo, pvp, iva))
             conn.commit()
-            messagebox.showinfo("Éxito", "Artículo guardado / actualizado correctamente.")
+            messagebox.showinfo("Éxito", "Artículo guardado con éxito.")
             self.txt_cod.delete(0, tk.END)
             self.txt_nom.delete(0, tk.END)
             self.txt_costo.delete(0, tk.END)
             self.txt_pvp.delete(0, tk.END)
-            self.cargar_datos()
+            self.cargar_tabla()
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo guardar: {e}")
+            messagebox.showerror("Error", str(e))
         finally:
             conn.close()
 
-class TPVApp:
+class TPVModerno:
     def __init__(self, root):
         self.root = root
-        self.root.title("Terminal Punto de Venta - Multi Servicios Ramirez")
-        self.root.geometry("1100x650")
-        self.root.configure(bg="#dcdcdc")
+        self.root.title("MULTI SERVICIOS RAMIREZ - TPV Profesional")
+        self.root.geometry("1200x700")
+        self.root.configure(bg="#121212")
 
         self.carrito = []
 
-        # --- CABECERA ---
-        frame_top = tk.Frame(root, bg="#ececec", bd=2, relief="groove")
-        frame_top.pack(fill="x", padx=10, pady=10)
+        # --- CABECERA SUPERIOR ---
+        header = tk.Frame(root, bg="#1e1e1e", bd=1, relief="solid")
+        header.pack(fill="x", padx=10, pady=10)
 
-        lbl_logo = tk.Label(frame_top, text="TPV", bg="#b5651d", fg="white", font=("Arial", 12, "bold"), padx=10, pady=10)
-        lbl_logo.pack(side="left", padx=5, pady=5)
+        # Logo / Título
+        lbl_logo = tk.Label(header, text=" M.S. RAMIREZ ", bg="#0083b0", fg="white", font=("Segoe UI", 13, "bold"), padx=10, pady=12)
+        lbl_logo.pack(side="left", padx=10, pady=10)
+
+        info_sesion = f"Terminal: T1 (F11)  |  Fecha: {datetime.now().strftime('%d/%m/%Y')}  |  Dependiente: [2] RAFELIN MENDEZ"
+        tk.Label(header, text=info_sesion, bg="#1e1e1e", fg="#b0b0b0", font=("Segoe UI", 10)).pack(side="left", padx=15)
+
+        # Visor digital total grande
+        self.lbl_visor = tk.Label(header, text="0.00 €", bg="black", fg="#00ffcc", font=("Consolas", 26, "bold"), bd=2, relief="sunken", width=12, anchor="e")
+        self.lbl_visor.pack(side="right", padx=15, pady=10)
+
+        # --- ENTRADA DE CÓDIGOS ---
+        input_frame = tk.Frame(root, bg="#1e1e1e", bd=1, relief="solid")
+        input_frame.pack(fill="x", padx=10, pady=5)
+
+        tk.Label(input_frame, text="ESCÁNER / CÓDIGO:", bg="#1e1e1e", fg="white", font=("Segoe UI", 10, "bold")).pack(side="left", padx=10, pady=12)
         
-        info_text = "Terminal Punto de Venta\nTerminal punto de venta y control de almacén"
-        tk.Label(frame_top, text=info_text, bg="#ececec", font=("Arial", 9), justify="left").pack(side="left", padx=5)
-
-        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
-        sesion_text = f"Serie de Ticket: T1  (F11)\nFecha: {fecha_hoy}\nDependiente: 2  (F2)    RAFELIN MENDEZ"
-        tk.Label(frame_top, text=sesion_text, bg="#ececec", font=("Arial", 9), justify="left").pack(side="left", padx=20)
-
-        self.lbl_visor = tk.Label(frame_top, text="0.00€", bg="black", fg="#00ffcc", font=("Courier New", 28, "bold"), bd=3, relief="sunken", width=10, anchor="e")
-        self.lbl_visor.pack(side="right", padx=10, pady=5)
-
-        # --- ENTRADA DE ARTÍCULOS ---
-        frame_input = tk.Frame(root, bg="#ececec", bd=2, relief="groove")
-        frame_input.pack(fill="x", padx=10, pady=5)
-
-        tk.Label(frame_input, text="Código / Búsqueda:", bg="#ececec", font=("Arial", 9, "bold")).pack(side="left", padx=5)
-        self.entry_codigo = tk.Entry(frame_input, font=("Courier New", 11), width=24)
-        self.entry_codigo.pack(side="left", padx=5, pady=5)
+        self.entry_codigo = tk.Entry(input_frame, font=("Consolas", 14), width=28, bg="#2d2d2d", fg="white", insertbackground="white")
+        self.entry_codigo.pack(side="left", padx=5, pady=12)
         self.entry_codigo.focus()
-        self.entry_codigo.bind("<Return>", self.agregar_producto)
+        self.entry_codigo.bind("<Return>", self.agregar_al_carrito)
 
-        tk.Label(frame_input, text="Unids:", bg="#ececec", font=("Arial", 9, "bold")).pack(side="left", padx=5)
-        self.entry_unids = tk.Entry(frame_input, font=("Arial", 11), width=6, justify="center")
-        self.entry_unids.insert(0, "1.00")
+        tk.Label(input_frame, text="Unidades:", bg="#1e1e1e", fg="white", font=("Segoe UI", 10, "bold")).pack(side="left", padx=15)
+        self.entry_unids = tk.Entry(input_frame, font=("Segoe UI", 12), width=6, justify="center", bg="#2d2d2d", fg="white", insertbackground="white")
+        self.entry_unids.insert(0, "1")
         self.entry_unids.pack(side="left", padx=5)
 
-        # --- TABLA CENTRAL ---
-        frame_tabla = tk.Frame(root, bg="white", bd=2, relief="sunken")
-        frame_tabla.pack(fill="both", expand=True, padx=10, pady=5)
+        # --- TABLA CENTRAL DE TICKET ---
+        tabla_frame = tk.Frame(root, bg="#121212")
+        tabla_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        style_tpv = ttk.Style()
+        style_tpv.theme_use("clam")
+        style_tpv.configure("TpvTree.Treeview", background="#1e1e1e", foreground="white", fieldbackground="#1e1e1e", rowheight=28, font=("Segoe UI", 11))
+        style_tpv.configure("TpvTree.Treeview.Heading", background="#2d2d2d", foreground="#00ffcc", font=("Segoe UI", 11, "bold"))
 
         columns = ("codigo", "descripcion", "unids", "precio", "iva", "importe")
-        self.tree = ttk.Treeview(frame_tabla, columns=columns, show="headings", height=12)
+        self.tree = ttk.Treeview(tabla_frame, columns=columns, show="headings", height=12, style="TpvTree.Treeview")
         
         self.tree.heading("codigo", text="Código")
         self.tree.heading("descripcion", text="Descripción")
-        self.tree.heading("unids", text="Unids.")
-        self.tree.heading("precio", text="Precio Base")
-        self.tree.heading("iva", text="IVA")
-        self.tree.heading("importe", text="Importe Total")
+        self.tree.heading("unids", text="Unidades")
+        self.tree.heading("precio", text="Precio Base (€)")
+        self.tree.heading("iva", text="IVA (%)")
+        self.tree.heading("importe", text="Importe Total (€)")
 
-        self.tree.column("codigo", width=140)
-        self.tree.column("descripcion", width=340)
-        self.tree.column("unids", width=70, anchor="center")
-        self.tree.column("precio", width=90, anchor="e")
-        self.tree.column("iva", width=60, anchor="center")
-        self.tree.column("importe", width=100, anchor="e")
+        self.tree.column("codigo", width=160)
+        self.tree.column("descripcion", width=380)
+        self.tree.column("unids", width=90, anchor="center")
+        self.tree.column("precio", width=110, anchor="e")
+        self.tree.column("iva", width=80, anchor="center")
+        self.tree.column("importe", width=120, anchor="e")
 
-        self.tree.pack(fill="both", expand=True)
+        self.tree.pack(side="left", fill="both", expand=True)
 
-        # --- ZONA INFERIOR ---
-        frame_bottom = tk.Frame(root, bg="#dcdcdc")
-        frame_bottom.pack(fill="x", padx=10, pady=10)
+        scrollbar_t = ttk.Scrollbar(tabla_frame, orient="vertical", command=self.tree.yview)
+        scrollbar_t.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=scrollbar_t.set)
 
-        frame_botones = tk.Frame(frame_bottom, bg="#dcdcdc")
-        frame_botones.pack(side="left", fill="y")
+        # --- ZONA INFERIOR (BOTONERA + TOTALES) ---
+        bottom_frame = tk.Frame(root, bg="#121212")
+        bottom_frame.pack(fill="x", padx=10, pady=10)
 
-        tk.Button(frame_botones, text="F5  Venta", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.procesar_venta).grid(row=0, column=0, padx=2, pady=2)
-        tk.Button(frame_botones, text="F7  Ticket", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.imprimir_ticket).grid(row=0, column=1, padx=2, pady=2)
-        tk.Button(frame_botones, text="F6  Cancelar", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.cancelar_venta).grid(row=1, column=0, padx=2, pady=2)
-        tk.Button(frame_botones, text="F8  Caja", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=lambda: messagebox.showinfo("Caja", "Caja abierta")).grid(row=1, column=1, padx=2, pady=2)
-        tk.Button(frame_botones, text="F10 Artículos / IVA / Costos", bg="#b5651d", fg="white", font=("Arial", 9, "bold"), width=25, command=self.abrir_gestion).grid(row=2, column=0, columnspan=2, padx=2, pady=2)
+        # Botones de función estilo clásico TPV
+        botones_frame = tk.Frame(bottom_frame, bg="#121212")
+        botones_frame.pack(side="left", fill="y")
 
-        frame_totales = tk.Frame(frame_bottom, bg="#ececec", bd=2, relief="groove", padx=10, pady=5)
-        frame_totales.pack(side="right")
+        btn_cfg = [
+            ("F5  Cobrar Venta", "#28a745", self.procesar_cobro),
+            ("F6  Cancelar Ticket", "#dc3545", self.cancelar_ticket),
+            ("F7  Imprimir Ticket", "#ffc107", self.imprimir),
+            ("F8  Abrir Caja", "#17a2b8", lambda: messagebox.showinfo("Caja", "Caja abierta correctamente.")),
+            ("F10  Artículos / IVA", "#0083b0", self.abrir_gestion)
+        ]
 
-        tk.Label(frame_totales, text="Base imponible:", bg="#ececec", font=("Arial", 9)).grid(row=0, column=0, sticky="w", padx=5)
-        self.lbl_base = tk.Label(frame_totales, text="0.00", bg="white", font=("Courier New", 10, "bold"), width=15, anchor="e", relief="sunken")
-        self.lbl_base.grid(row=0, column=1, padx=5, pady=2)
+        for i, (txt, bg_color, cmd) in enumerate(btn_cfg):
+            fg_col = "black" if bg_color == "#ffc107" else "white"
+            b = tk.Button(botones_frame, text=txt, bg=bg_color, fg=fg_col, font=("Segoe UI", 10, "bold"), width=18, pady=6, command=cmd)
+            b.grid(row=i//2, column=i%2, padx=4, pady=4)
 
-        tk.Label(frame_totales, text="IVA Total:", bg="#ececec", font=("Arial", 9)).grid(row=1, column=0, sticky="w", padx=5)
-        self.lbl_iva = tk.Label(frame_totales, text="0.00", bg="white", font=("Courier New", 10, "bold"), width=15, anchor="e", relief="sunken")
-        self.lbl_iva.grid(row=1, column=1, padx=5, pady=2)
+        # Panel de totales derecho
+        totales_frame = tk.Frame(bottom_frame, bg="#1e1e1e", bd=1, relief="solid", padx=15, pady=8)
+        totales_frame.pack(side="right")
 
-        tk.Label(frame_totales, text="Total:", bg="#ececec", font=("Arial", 10, "bold")).grid(row=2, column=0, sticky="w", padx=5)
-        self.lbl_total = tk.Label(frame_totales, text="0.00", bg="white", font=("Courier New", 12, "bold"), fg="#990000", width=15, anchor="e", relief="sunken")
-        self.lbl_total.grid(row=2, column=1, padx=5, pady=2)
+        tk.Label(totales_frame, text="Base Imponible:", bg="#1e1e1e", fg="#b0b0b0", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=2)
+        self.lbl_base = tk.Label(totales_frame, text="0.00 €", bg="#1e1e1e", fg="white", font=("Consolas", 11, "bold"), width=12, anchor="e")
+        self.lbl_base.grid(row=0, column=1, padx=10, pady=2)
+
+        tk.Label(totales_frame, text="IVA Total:", bg="#1e1e1e", fg="#b0b0b0", font=("Segoe UI", 10)).grid(row=1, column=0, sticky="w", pady=2)
+        self.lbl_iva = tk.Label(totales_frame, text="0.00 €", bg="#1e1e1e", fg="white", font=("Consolas", 11, "bold"), width=12, anchor="e")
+        self.lbl_iva.grid(row=1, column=1, padx=10, pady=2)
+
+        tk.Label(totales_frame, text="TOTAL A PAGAR:", bg="#1e1e1e", fg="#00ffcc", font=("Segoe UI", 11, "bold")).grid(row=2, column=0, sticky="w", pady=4)
+        self.lbl_total = tk.Label(totales_frame, text="0.00 €", bg="#1e1e1e", fg="#00ffcc", font=("Consolas", 14, "bold"), width=12, anchor="e")
+        self.lbl_total.grid(row=2, column=1, padx=10, pady=4)
 
         # Atajos de teclado globales
-        root.bind("<F5>", lambda event: self.procesar_venta())
-        root.bind("<F6>", lambda event: self.cancelar_venta())
-        root.bind("<F7>", lambda event: self.imprimir_ticket())
-        root.bind("<F8>", lambda event: messagebox.showinfo("Caja", "Caja abierta"))
-        root.bind("<F10>", lambda event: self.abrir_gestion())
-        root.bind("<Escape>", lambda event: root.quit())
+        root.bind("<F5>", lambda e: self.procesar_cobro())
+        root.bind("<F6>", lambda e: self.cancelar_ticket())
+        root.bind("<F7>", lambda e: self.imprimir())
+        root.bind("<F8>", lambda e: messagebox.showinfo("Caja", "Caja abierta."))
+        root.bind("<F10>", lambda e: self.abrir_gestion())
+        root.bind("<Escape>", lambda e: root.quit())
 
     def abrir_gestion(self):
-        GestionInventarioWindow(self.root, None)
+        VentanaGestionArticulos(self.root)
 
-    def agregar_producto(self, event=None):
+    def agregar_al_carrito(self, event=None):
         codigo = self.entry_codigo.get().strip()
         try:
-            unidades = float(self.entry_unids.get())
+            unids = float(self.entry_unids.get())
         except ValueError:
-            unidades = 1.0
+            unids = 1.0
 
         if not codigo:
             return
@@ -279,76 +305,71 @@ class TPVApp:
         conn.close()
 
         if prod:
-            precio_base = prod["precio_base"]
-            iva_pct = prod["iva"]
-            
             self.carrito.append({
                 "codigo": prod["codigo"],
                 "nombre": prod["nombre"],
-                "unidades": unidades,
-                "precio_base": precio_base,
-                "iva_pct": iva_pct
+                "unids": unids,
+                "precio_base": prod["precio_base"],
+                "iva": prod["iva"]
             })
-            
             self.entry_codigo.delete(0, tk.END)
             self.entry_unids.delete(0, tk.END)
-            self.entry_unids.insert(0, "1.00")
-            self.actualizar_vista()
+            self.entry_unids.insert(0, "1")
+            self.actualizar_pantalla()
         else:
-            messagebox.showerror("Error", "Artículo no encontrado. Pulse F10 para configurarlo en el inventario.")
+            messagebox.showerror("No encontrado", "Artículo no registrado. Pulse F10 para añadirlo al inventario.")
             self.entry_codigo.select_range(0, tk.END)
 
-    def actualizar_vista(self):
-        for row in self.tree.get_children():
-            self.tree.delete(row)
+    def actualizar_pantalla(self):
+        for r in self.tree.get_children():
+            self.tree.delete(r)
 
-        base_total = 0.0
-        iva_total = 0.0
-        general_total = 0.0
+        base_t = 0.0
+        iva_t = 0.0
+        total_g = 0.0
 
         for item in self.carrito:
-            imp_base = item["unidades"] * item["precio_base"]
-            cuota_iva = imp_base * (item["iva_pct"] / 100)
-            importe_con_iva = imp_base + cuota_iva
+            b = item["unids"] * item["precio_base"]
+            cuota = b * (item["iva"] / 100)
+            tot_lin = b + cuota
 
-            base_total += imp_base
-            iva_total += cuota_iva
-            general_total += importe_con_iva
+            base_t += b
+            iva_t += cuota
+            total_g += tot_lin
 
             self.tree.insert("", "end", values=(
                 item["codigo"],
                 item["nombre"],
-                f"{item['unidades']:.2f}",
-                f"{item['precio_base']:.2f}",
-                f"{item['iva_pct']}%",
-                f"{importe_con_iva:.2f}"
+                f"{item['unids']:.2f}",
+                f"{item['precio_base']:.2f} €",
+                f"{item['iva']}%",
+                f"{tot_lin:.2f} €"
             ))
 
-        self.lbl_visor.config(text=f"{general_total:.2f}€")
-        self.lbl_base.config(text=f"{base_total:.2f}")
-        self.lbl_iva.config(text=f"{iva_total:.2f}")
-        self.lbl_total.config(text=f"{general_total:.2f}")
+        self.lbl_visor.config(text=f"{total_g:.2f} €")
+        self.lbl_base.config(text=f"{base_t:.2f} €")
+        self.lbl_iva.config(text=f"{iva_t:.2f} €")
+        self.lbl_total.config(text=f"{total_g:.2f} €")
         self.entry_codigo.focus()
 
-    def cancelar_venta(self):
+    def cancelar_ticket(self):
         self.carrito = []
-        self.actualizar_vista()
-        self.entry_codigo.focus()
+        self.actualizar_pantalla()
 
-    def procesar_venta(self):
+    def procesar_cobro(self):
         if not self.carrito:
-            messagebox.showwarning("Aviso", "El ticket está vacío.")
+            messagebox.showwarning("Aviso", "El carrito está vacío.")
             return
-        messagebox.showinfo("Venta", "¡Venta cobrada y registrada con éxito!")
-        self.cancelar_venta()
+        messagebox.showinfo("Cobro Exitoso", "¡Venta procesada y guardada correctamente!")
+        self.cancelar_ticket()
 
-    def imprimir_ticket(self):
+    def imprimir(self):
         if not self.carrito:
-            messagebox.showwarning("Aviso", "No hay nada que imprimir.")
+            messagebox.showwarning("Aviso", "No hay elementos para imprimir.")
             return
-        messagebox.showinfo("Ticket", "Imprimiendo ticket en impresora por defecto...")
+        messagebox.showinfo("Impresora", "Imprimiendo ticket de caja...")
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = TPVApp(root)
+    app = TPVModerno(root)
     root.mainloop()
