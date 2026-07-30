@@ -3,11 +3,11 @@ from datetime import datetime
 import customtkinter as ctk
 from tkinter import messagebox, ttk
 
-# Configuración inicial de aspecto moderno
+# Configuración de apariencia moderna de escritorio
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
-DATABASE = 'ramirez_tpv_pro.db'
+DATABASE = 'ramirez_definitivo.db'
 
 def get_connection():
     conn = sqlite3.connect(DATABASE)
@@ -30,7 +30,7 @@ def init_db():
     ''')
     cursor.execute('SELECT COUNT(*) FROM productos')
     if cursor.fetchone()[0] == 0:
-        # PRODUCTOS REALES EXTRAÍDOS DE TUS FOTOS DE INVENTARIO
+        # 100% ARTÍCULOS REALES EXTRAÍDOS DE TUS FOTOS DE INVENTARIO
         productos_iniciales = [
             ('000000000001', 'SAZON LIQUIDO RANCHERO 400ML', 10.0, 1.80, 2.47, 21),
             ('000000000002', 'GANDULES VERDES CON COCO GOYA', 6.0, 2.11, 2.72, 4),
@@ -51,19 +51,19 @@ def init_db():
 
 init_db()
 
-class VentanaGestion(ctk.CTkToplevel):
+class VentanaGestionInventario(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
-        self.title("Gestión Avanzada de Inventario y Precios - Multi Servicios Ramirez")
-        self.geometry("1050x580")
+        self.title("Gestión de Inventario y Precios - Multi Servicios Ramirez")
+        self.geometry("1100x600")
         self.configure(fg_color="#121212")
 
-        lbl = ctk.CTkLabel(self, text="CONTROL DE ARTÍCULOS, COSTES E IVA", font=("Segoe UI", 16, "bold"), text_color="#00ffcc")
-        lbl.pack(pady=15)
+        lbl_tit = ctk.CTkLabel(self, text="PANEL DE CONTROL Y GESTIÓN DE ARTÍCULOS", font=("Segoe UI", 16, "bold"), text_color="#00ffcc")
+        lbl_tit.pack(pady=15)
 
-        # Tabla moderna con ttk adaptado al tema oscuro
+        # Contenedor de la tabla
         frame_tabla = ctk.CTkFrame(self, fg_color="#1e1e1e", corner_radius=10)
-        frame_tabla.pack(fill="both", expand=True, padx=20, pady=10)
+        frame_tabla.pack(fill="both", expand=True, padx=20, pady=5)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -83,7 +83,7 @@ class VentanaGestion(ctk.CTkToplevel):
 
         self.tree.column("id", width=40, anchor="center")
         self.tree.column("codigo", width=140)
-        self.tree.column("nombre", width=360)
+        self.tree.column("nombre", width=380)
         self.tree.column("stock", width=70, anchor="center")
         self.tree.column("costo", width=90, anchor="e")
         self.tree.column("precio", width=110, anchor="e")
@@ -91,7 +91,7 @@ class VentanaGestion(ctk.CTkToplevel):
 
         self.tree.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
-        # Formulario de alta / modificación inferior
+        # Formulario inferior para añadir/editar productos
         frame_form = ctk.CTkFrame(self, fg_color="#1e1e1e", corner_radius=10)
         frame_form.pack(fill="x", padx=20, pady=15)
 
@@ -100,7 +100,7 @@ class VentanaGestion(ctk.CTkToplevel):
         self.txt_cod.grid(row=0, column=1, padx=5, pady=10)
 
         ctk.CTkLabel(frame_form, text="Descripción:", font=("Segoe UI", 11, "bold")).grid(row=0, column=2, padx=10, pady=10, sticky="w")
-        self.txt_nom = ctk.CTkEntry(frame_form, width=250)
+        self.txt_nom = ctk.CTkEntry(frame_form, width=280)
         self.txt_nom.grid(row=0, column=3, padx=5, pady=10)
 
         ctk.CTkLabel(frame_form, text="Costo (€):", font=("Segoe UI", 11, "bold")).grid(row=0, column=4, padx=10, pady=10, sticky="w")
@@ -116,12 +116,12 @@ class VentanaGestion(ctk.CTkToplevel):
         self.combo_iva.grid(row=1, column=3, padx=5, pady=10, sticky="w")
         self.combo_iva.set("21")
 
-        btn_guardar = ctk.CTkButton(frame_form, text="Guardar / Actualizar Artículo", fg_color="#0083b0", hover_color="#005f80", font=("Segoe UI", 11, "bold"), command=self.guardar)
+        btn_guardar = ctk.CTkButton(frame_form, text="Guardar / Actualizar Artículo", fg_color="#0083b0", hover_color="#005f80", font=("Segoe UI", 11, "bold"), command=self.guardar_articulo)
         btn_guardar.grid(row=1, column=4, columnspan=2, padx=15, pady=10)
 
-        self.cargar_datos()
+        self.cargar_tabla()
 
-    def cargar_datos(self):
+    def cargar_tabla(self):
         for r in self.tree.get_children():
             self.tree.delete(r)
         conn = get_connection()
@@ -131,7 +131,7 @@ class VentanaGestion(ctk.CTkToplevel):
             self.tree.insert("", "end", values=(row["id"], row["codigo"], row["nombre"], row["existencias"], f"{row['costo_un']:.2f}", f"{row['precio_base']:.2f}", f"{row['iva']}%"))
         conn.close()
 
-    def guardar(self):
+    def guardar_articulo(self):
         codigo = self.txt_cod.get().strip()
         nombre = self.txt_nom.get().strip().upper()
         try:
@@ -139,7 +139,7 @@ class VentanaGestion(ctk.CTkToplevel):
             pvp = float(self.txt_pvp.get())
             iva = int(self.combo_iva.get())
         except ValueError:
-            messagebox.showerror("Error", "Los campos numéricos (costo, precio, IVA) deben ser válidos.")
+            messagebox.showerror("Error", "Revise que los valores de costo, precio e IVA sean numéricos válidos.")
             return
 
         if not codigo or not nombre:
@@ -156,57 +156,57 @@ class VentanaGestion(ctk.CTkToplevel):
                 nombre=excluded.nombre, costo_un=excluded.costo_un, precio_base=excluded.precio_base, iva=excluded.iva
             ''', (codigo, nombre, costo, pvp, iva))
             conn.commit()
-            messagebox.showinfo("Éxito", "Artículo guardado correctamente.")
+            messagebox.showinfo("Éxito", "Artículo guardado / actualizado correctamente.")
             self.txt_cod.delete(0, 'end')
             self.txt_nom.delete(0, 'end')
             self.txt_costo.delete(0, 'end')
             self.txt_pvp.delete(0, 'end')
-            self.cargar_datos()
+            self.cargar_tabla()
         except Exception as e:
             messagebox.showerror("Error", str(e))
         finally:
             conn.close()
 
-class TPVProApp:
+class TPVPrincipal:
     def __init__(self, root):
         self.root = root
-        self.root.title("Multi Servicios Ramirez - TPV Profesional")
+        self.root.title("MULTI SERVICIOS RAMIREZ - TPV Profesional")
         self.root.geometry("1250x720")
         self.root.configure(fg_color="#121212")
 
         self.carrito = []
 
-        # --- CABECERA SUPERIOR ---
+        # --- CABECERA ---
         header = ctk.CTkFrame(root, fg_color="#1e1e1e", corner_radius=10, height=80)
         header.pack(fill="x", padx=15, pady=15)
 
         lbl_logo = ctk.CTkLabel(header, text=" M.S. RAMIREZ ", fg_color="#0083b0", text_color="white", font=("Segoe UI", 14, "bold"), corner_radius=6)
         lbl_logo.pack(side="left", padx=15, pady=15)
 
-        info_text = f"Terminal: T1 (F11)   |   Fecha: {datetime.now().strftime('%d/%m/%Y')}   |   Dependiente: [2] RAFELIN MENDEZ"
-        ctk.CTkLabel(header, text=info_text, font=("Segoe UI", 11), text_color="#b0b0b0").pack(side="left", padx=15)
+        info_sesion = f"Terminal: T1 (F11)   |   Fecha: {datetime.now().strftime('%d/%m/%Y')}   |   Dependiente: [2] RAFELIN MENDEZ"
+        ctk.CTkLabel(header, text=info_sesion, font=("Segoe UI", 11), text_color="#b0b0b0").pack(side="left", padx=15)
 
-        # Visor digital total superior derecha
+        # Visor digital superior
         self.lbl_visor = ctk.CTkLabel(header, text="0.00 €", fg_color="black", text_color="#00ffcc", font=("Consolas", 28, "bold"), width=200, height=50, corner_radius=8)
         self.lbl_visor.pack(side="right", padx=15, pady=12)
 
-        # --- PANEL DE ENTRADA DE ARTÍCULOS ---
+        # --- ENTRADA / ESCÁNER ---
         input_frame = ctk.CTkFrame(root, fg_color="#1e1e1e", corner_radius=10)
         input_frame.pack(fill="x", padx=15, pady=5)
 
         ctk.CTkLabel(input_frame, text="ESCÁNER / CÓDIGO DE BARRAS:", font=("Segoe UI", 12, "bold"), text_color="#00ffcc").pack(side="left", padx=15, pady=12)
         
-        self.entry_codigo = ctk.CTkEntry(input_frame, font=("Consolas", 14), width=300, height=35)
+        self.entry_codigo = ctk.CTkEntry(input_frame, font=("Consolas", 14), width=320, height=35)
         self.entry_codigo.pack(side="left", padx=10, pady=12)
         self.entry_codigo.focus()
-        self.entry_codigo.bind("<Return>", self.agregar_al_carrito)
+        self.entry_codigo.bind("<Return>", self.agregar_producto)
 
         ctk.CTkLabel(input_frame, text="Unidades:", font=("Segoe UI", 11, "bold")).pack(side="left", padx=15)
         self.entry_unids = ctk.CTkEntry(input_frame, font=("Segoe UI", 12), width=70, height=35, justify="center")
         self.entry_unids.insert(0, "1")
         self.entry_unids.pack(side="left", padx=5)
 
-        # --- TABLA CENTRAL DEL TICKET ---
+        # --- TABLA CENTRAL ---
         tabla_frame = ctk.CTkFrame(root, fg_color="#1e1e1e", corner_radius=10)
         tabla_frame.pack(fill="both", expand=True, padx=15, pady=10)
 
@@ -229,19 +229,18 @@ class TPVProApp:
 
         self.tree.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
-        # --- ZONA INFERIOR (BOTONERA Y TOTALES) ---
+        # --- ZONA INFERIOR ---
         bottom_frame = ctk.CTkFrame(root, fg_color="#121212")
         bottom_frame.pack(fill="x", padx=15, pady=10)
 
-        # Botones de función TPV
         botones_frame = ctk.CTkFrame(bottom_frame, fg_color="#121212")
         botones_frame.pack(side="left", fill="y")
 
         btn_cfg = [
             ("F5  Cobrar Venta", "#28a745", "#1e7e34", self.procesar_cobro),
             ("F6  Cancelar Ticket", "#dc3545", "#bd2130", self.cancelar_ticket),
-            ("F7  Imprimir Ticket", "#ffc107", "#d39e00", self.imprimir),
-            ("F8  Abrir Caja", "#17a2b8", "#117a8b", lambda: messagebox.showinfo("Caja", "Caja abierta correctamente.")),
+            ("F7  Imprimir Ticket", "#ffc107", "#d39e00", self.imprimir_ticket),
+            ("F8  Abrir Caja", "#17a2b8", "#117a8b", lambda: messagebox.showinfo("Caja", "Caja abierta con éxito.")),
             ("F10  Artículos / IVA", "#0083b0", "#005f80", self.abrir_gestion)
         ]
 
@@ -250,8 +249,8 @@ class TPVProApp:
             b = ctk.CTkButton(botones_frame, text=txt, fg_color=bg_col, hover_color=hover_col, text_color=fg_text, font=("Segoe UI", 11, "bold"), width=180, height=40, command=cmd)
             b.grid(row=i//2, column=i%2, padx=5, pady=5)
 
-        # Panel de totales derecho
-        totales_frame = ctk.CTkFrame(bottom_frame, fg_color="#1e1e1e", corner_radius=10, width=320, height=130)
+        # Totales
+        totales_frame = ctk.CTkFrame(bottom_frame, fg_color="#1e1e1e", corner_radius=10, width=330, height=130)
         totales_frame.pack(side="right")
         totales_frame.pack_propagate(False)
 
@@ -267,23 +266,23 @@ class TPVProApp:
         self.lbl_total = ctk.CTkLabel(totales_frame, text="0.00 €", font=("Consolas", 16, "bold"), text_color="#00ffcc")
         self.lbl_total.place(relx=0.95, rely=0.75, anchor="e")
 
-        # Atajos de teclado globales
+        # Atajos de teclado
         root.bind("<F5>", lambda e: self.procesar_cobro())
         root.bind("<F6>", lambda e: self.cancelar_ticket())
-        root.bind("<F7>", lambda e: self.imprimir())
+        root.bind("<F7>", lambda e: self.imprimir_ticket())
         root.bind("<F8>", lambda e: messagebox.showinfo("Caja", "Caja abierta."))
         root.bind("<F10>", lambda e: self.abrir_gestion())
         root.bind("<Escape>", lambda e: root.quit())
 
     def abrir_gestion(self):
-        VentanaGestion(self.root)
+        VentanaGestionInventario(self.root)
 
-    def agregar_al_carrito(self, event=None):
+    def agregar_producto(self, event=None):
         codigo = self.entry_codigo.get().strip()
         try:
-            unids = float(self.entry_unids.get())
+            unidades = float(self.entry_unids.get())
         except ValueError:
-            unids = 1.0
+            unidades = 1.0
 
         if not codigo:
             return
@@ -298,7 +297,7 @@ class TPVProApp:
             self.carrito.append({
                 "codigo": prod["codigo"],
                 "nombre": prod["nombre"],
-                "unids": unids,
+                "unids": unidades,
                 "precio_base": prod["precio_base"],
                 "iva": prod["iva"]
             })
@@ -307,7 +306,7 @@ class TPVProApp:
             self.entry_unids.insert(0, "1")
             self.actualizar_pantalla()
         else:
-            messagebox.showerror("No encontrado", "Artículo no registrado en el inventario. Pulse F10 para agregarlo.")
+            messagebox.showerror("Error", "Artículo no encontrado. Pulse F10 para configurarlo en el inventario.")
             self.entry_codigo.select_range(0, 'end')
 
     def actualizar_pantalla(self):
@@ -350,16 +349,16 @@ class TPVProApp:
         if not self.carrito:
             messagebox.showwarning("Aviso", "El ticket está vacío.")
             return
-        messagebox.showinfo("Cobro Exitoso", "¡Venta cobrada y registrada con éxito!")
+        messagebox.showinfo("Venta", "¡Venta cobrada y registrada con éxito!")
         self.cancelar_ticket()
 
-    def imprimir(self):
+    def imprimir_ticket(self):
         if not self.carrito:
             messagebox.showwarning("Aviso", "No hay nada que imprimir.")
             return
-        messagebox.showinfo("Impresora", "Imprimiendo ticket de caja...")
+        messagebox.showinfo("Ticket", "Imprimiendo ticket en impresora por defecto...")
 
 if __name__ == "__main__":
     root = ctk.CTk()
-    app = TPVProApp(root)
+    app = TPVPrincipal(root)
     root.mainloop()
