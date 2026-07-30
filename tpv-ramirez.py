@@ -1,10 +1,7 @@
 import sqlite3
-import json
 from datetime import datetime
-import streamlit as st
-import streamlit.components.v1 as components
-
-st.set_page_config(page_title="Terminal Punto de Venta - Multi Servicios Ramirez", layout="wide")
+import tkinter as tk
+from tkinter import ttk, messagebox
 
 DATABASE = 'tienda.db'
 
@@ -43,214 +40,195 @@ def init_db():
 
 init_db()
 
-conn = get_connection()
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM productos")
-rows = cursor.fetchall()
-productos_json = [{"codigo": r["codigo"], "nombre": r["nombre"], "precio_base": r["precio_base"], "iva": r["iva"]} for r in rows]
-conn.close()
+class TPVApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Terminal Punto de Venta - Multi Servicios Ramirez")
+        self.root.geometry("1100x650")
+        self.root.configure(bg="#dcdcdc")
 
-fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+        self.carrito = []
 
-tpv_html = f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {{ background-color: #dcdcdc; font-family: Tahoma, Arial, sans-serif; user-select: none; }}
-        .tpv-panel {{ background-color: #ececec; border: 2px solid #b5651d; border-radius: 4px; box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }}
-        .digital-screen {{ background-color: #000; color: #00ffcc; font-family: 'Courier New', monospace; border: 3px solid #b5651d; text-shadow: 0 0 6px rgba(0,255,204,0.5); }}
-        .tpv-grid-header {{ background-color: #d4d0c8; border-bottom: 2px solid #808080; font-weight: bold; color: #333; }}
-        .tpv-row {{ border-bottom: 1px solid #d0d0d0; background-color: #ffffff; }}
-        .tpv-row-active {{ background-color: #ffffd9; outline: 1px solid #0000ff; }}
-        .btn-tpv {{ background: linear-gradient(to bottom, #f9f9f9, #e1e1e1); border: 1px solid #adadad; border-radius: 3px; font-weight: bold; color: #333; }}
-        .btn-tpv:active {{ background: #dcdcdc; }}
-    </style>
-</head>
-<body class="p-3">
-    <div class="max-w-7xl mx-auto space-y-3">
+        # --- CABECERA ---
+        frame_top = tk.Frame(root, bg="#ececec", bd=2, relief="groove")
+        frame_top.pack(fill="x", padx=10, pady=10)
+
+        # Logo / Info
+        lbl_logo = tk.Label(frame_top, text="TPV", bg="#b5651d", fg="white", font=("Arial", 12, "bold"), padx=10, pady=10)
+        lbl_logo.pack(side="left", padx=5, pady=5)
         
-        <!-- CABECERA SUPERIOR -->
-        <div class="grid grid-cols-12 gap-3 items-center">
-            <div class="col-span-3 tpv-panel p-2 bg-white flex items-center space-x-2">
-                <div class="bg-amber-700 text-white font-bold p-2 text-xs rounded">TPV</div>
-                <div>
-                    <div class="font-bold text-xs text-gray-800">Terminal Punto de Venta</div>
-                    <div class="text-[10px] text-gray-500">Terminal punto de venta y control de almacén</div>
-                </div>
-            </div>
+        info_text = "Terminal Punto de Venta\nTerminal punto de venta y control de almacén"
+        tk.Label(frame_top, text=info_text, bg="#ececec", font=("Arial", 9), justify="left").pack(side="left", padx=5)
 
-            <div class="col-span-4 text-xs space-y-0.5 px-2">
-                <div><b>Serie de Ticket:</b> T1 <span class="text-red-700 font-bold">F11</span></div>
-                <div><b>Fecha:</b> {fecha_hoy}</div>
-                <div><b>Dependiente:</b> 2 <span class="text-red-700 font-bold">F2</span> &nbsp;&nbsp; <b>RAFELIN MENDEZ</b></div>
-            </div>
+        # Datos Sesión
+        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+        sesion_text = f"Serie de Ticket: T1  (F11)\nFecha: {fecha_hoy}\nDependiente: 2  (F2)    RAFELIN MENDEZ"
+        tk.Label(frame_top, text=sesion_text, bg="#ececec", font=("Arial", 9), justify="left").pack(side="left", padx=20)
 
-            <div class="col-span-5 digital-screen p-3 rounded text-right text-4xl font-bold tracking-widest" id="visor-total">
-                0.00€
-            </div>
-        </div>
+        # Visor Total Digital
+        self.lbl_visor = tk.Label(frame_top, text="0.00€", bg="black", fg="#00ffcc", font=("Courier New", 28, "bold"), bd=3, relief="sunken", width=10, anchor="e")
+        self.lbl_visor.pack(side="right", padx=10, pady=5)
 
-        <!-- CUADRO CENTRAL: TABLA TIPO EXCEL / TPV CLÁSICO -->
-        <div class="tpv-panel p-2 bg-white">
-            <div class="overflow-hidden border border-gray-400 bg-white" style="height: 320px;">
-                <div class="grid grid-cols-12 tpv-grid-header p-1.5 text-xs">
-                    <div class="col-span-3 px-1">Código</div>
-                    <div class="col-span-5 px-1">Descripción</div>
-                    <div class="col-span-1 text-center">Unids.</div>
-                    <div class="col-span-1 text-right">Precio</div>
-                    <div class="col-span-1 text-center">Desc.</div>
-                    <div class="col-span-1 text-right">Importe</div>
-                </div>
-                
-                <div id="cuerpo-tabla" class="overflow-y-auto text-xs" style="height: 275px;">
-                    <!-- Fila activa de entrada -->
-                    <div class="grid grid-cols-12 tpv-row tpv-row-active p-1 items-center">
-                        <div class="col-span-3 px-1">
-                            <input type="text" id="input-codigo" placeholder="Escribir o escanear..." 
-                                   class="w-full bg-transparent focus:outline-none font-mono text-xs" autofocus>
-                        </div>
-                        <div class="col-span-5 px-1 text-gray-400 italic" id="preview-nombre">Seleccione producto...</div>
-                        <div class="col-span-1 text-center"><input type="text" id="input-unids" value="1.00" class="w-full text-center bg-transparent focus:outline-none"></div>
-                        <div class="col-span-1 text-right text-gray-400">0.00</div>
-                        <div class="col-span-1 text-center text-gray-400">0.0</div>
-                        <div class="col-span-1 text-right text-gray-400">0.00</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        # --- ENTRADA DE ARTÍCULOS ---
+        frame_input = tk.Frame(root, bg="#ececec", bd=2, relief="groove")
+        frame_input.pack(fill="x", padx=10, pady=5)
 
-        <!-- ZONA INFERIOR: BOTONES Y TOTALES -->
-        <div class="grid grid-cols-12 gap-3 items-start">
-            <!-- Botones de función -->
-            <div class="col-span-7 grid grid-cols-4 gap-2 pt-1">
-                <button onclick="alert('Acción Venta (F5)')" class="btn-tpv p-2 text-xs text-red-800"><b>F5</b> &nbsp; Venta</button>
-                <button onclick="alert('Acción Ticket (F7)')" class="btn-tpv p-2 text-xs text-red-800"><b>F7</b> &nbsp; Ticket</button>
-                <div class="col-span-2 flex items-center space-x-2 bg-white p-1.5 border border-gray-400 rounded">
-                    <span class="text-xs text-red-800 font-bold">Descontar: Ctrl + F12</span>
-                    <input type="text" value="0.00" class="w-16 text-right border border-gray-300 p-0.5 text-xs font-mono">
-                </div>
+        tk.Label(frame_input, text="Código:", bg="#ececec", font=("Arial", 9, "bold")).pack(side="left", padx=5)
+        self.entry_codigo = tk.Entry(frame_input, font=("Courier New", 11), width=20)
+        self.entry_codigo.pack(side="left", padx=5, pady=5)
+        self.entry_codigo.focus()
+        self.entry_codigo.bind("<Return>", self.agregar_producto)
 
-                <button onclick="limpiarVenta()" class="btn-tpv p-2 text-xs text-red-800"><b>F6</b> &nbsp; Cancelar</button>
-                <button onclick="alert('Caja (F8)')" class="btn-tpv p-2 text-xs text-red-800"><b>F8</b> &nbsp; Caja</button>
-                <button onclick="alert('Cerrar')" class="btn-tpv p-2 text-xs text-red-800 col-span-2"><b>Esc</b> &nbsp; Cerrar</button>
-            </div>
+        tk.Label(frame_input, text="Unids:", bg="#ececec", font=("Arial", 9, "bold")).pack(side="left", padx=5)
+        self.entry_unids = tk.Entry(frame_input, font=("Arial", 11), width=6, justify="center")
+        self.entry_unids.insert(0, "1.00")
+        self.entry_unids.pack(side="left", padx=5)
 
-            <!-- Panel Derecho de Totales -->
-            <div class="col-span-5 tpv-panel p-3 bg-white space-y-1.5 text-xs">
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-700">Base imponible:</span>
-                    <span id="lbl-base" class="font-mono font-bold bg-gray-100 px-2 py-0.5 border border-gray-300 w-28 text-right">0.00</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-gray-700">IVA:</span>
-                    <span id="lbl-iva" class="font-mono font-bold bg-gray-100 px-2 py-0.5 border border-gray-300 w-28 text-right">0.00</span>
-                </div>
-                <div class="flex justify-between items-center pt-1">
-                    <span class="font-bold text-gray-900 text-sm">Total:</span>
-                    <span id="lbl-total" class="font-mono font-bold text-sm bg-gray-100 px-2 py-1 border border-gray-300 w-28 text-right text-red-800">0.00</span>
-                </div>
-            </div>
-        </div>
-    </div>
+        # --- TABLA CENTRAL ---
+        frame_tabla = tk.Frame(root, bg="white", bd=2, relief="sunken")
+        frame_tabla.pack(fill="both", expand=True, padx=10, pady=5)
 
-    <script>
-        const catalogo = {json.dumps(productos_json)};
-        let carrito = [];
+        columns = ("codigo", "descripcion", "unids", "precio", "desc", "importe")
+        self.tree = ttk.Treeview(frame_tabla, columns=columns, show="headings", height=12)
+        
+        self.tree.heading("codigo", text="Código")
+        self.tree.heading("descripcion", text="Descripción")
+        self.tree.heading("unids", text="Unids.")
+        self.tree.heading("precio", text="Precio")
+        self.tree.heading("desc", text="Desc.")
+        self.tree.heading("importe", text="Importe")
 
-        const inputCodigo = document.getElementById('input-codigo');
-        const inputUnids = document.getElementById('input-unids');
+        self.tree.column("codigo", width=150)
+        self.tree.column("descripcion", width=350)
+        self.tree.column("unids", width=80, anchor="center")
+        self.tree.column("precio", width=100, anchor="e")
+        self.tree.column("desc", width=80, anchor="center")
+        self.tree.column("importe", width=100, anchor="e")
 
-        inputCodigo.addEventListener('keypress', function(e) {{
-            if (e.key === 'Enter') {{
-                const val = inputCodigo.value.trim();
-                const unids = parseFloat(inputUnids.value) || 1.0;
-                if (!val) return;
+        self.tree.pack(fill="both", expand=True)
 
-                const prod = catalogo.find(p => p.codigo === val || p.nombre.toLowerCase().includes(val.toLowerCase()));
-                if (prod) {{
-                    carrito.push({{
-                        codigo: prod.codigo,
-                        nombre: prod.nombre,
-                        unidades: unids,
-                        precio: prod.precio_base,
-                        iva: prod.iva
-                    }});
-                    inputCodigo.value = '';
-                    inputUnids.value = '1.00';
-                    actualizarTabla();
-                }} else {{
-                    alert('Artículo no encontrado');
-                }}
-            }}
-        }});
+        # --- ZONA INFERIOR (BOTONES Y TOTALES) ---
+        frame_bottom = tk.Frame(root, bg="#dcdcdc")
+        frame_bottom.pack(fill="x", padx=10, pady=10)
 
-        function actualizarTabla() {{
-            const cuerpo = document.getElementById('cuerpo-tabla');
+        # Botones función estilo clásico
+        frame_botones = tk.Frame(frame_bottom, bg="#dcdcdc")
+        frame_botones.pack(side="left", fill="y")
+
+        tk.Button(frame_botones, text="F5  Venta", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.procesar_venta).grid(row=0, column=0, padx=2, pady=2)
+        tk.Button(frame_botones, text="F7  Ticket", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.imprimir_ticket).grid(row=0, column=1, padx=2, pady=2)
+        tk.Button(frame_botones, text="F6  Cancelar", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=self.cancelar_venta).grid(row=1, column=0, padx=2, pady=2)
+        tk.Button(frame_botones, text="F8  Caja", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=12, command=lambda: messagebox.showinfo("Caja", "Caja abierta")).grid(row=1, column=1, padx=2, pady=2)
+        tk.Button(frame_botones, text="Esc  Cerrar", bg="#e1e1e1", fg="#990000", font=("Arial", 9, "bold"), width=25, command=root.quit).grid(row=2, column=0, columnspan=2, padx=2, pady=2)
+
+        # Totales derecho
+        frame_totales = tk.Frame(frame_bottom, bg="#ececec", bd=2, relief="groove", padx=10, pady=5)
+        frame_totales.pack(side="right")
+
+        tk.Label(frame_totales, text="Base imponible:", bg="#ececec", font=("Arial", 9)).grid(row=0, column=0, sticky="w", padx=5)
+        self.lbl_base = tk.Label(frame_totales, text="0.00", bg="white", font=("Courier New", 10, "bold"), width=15, anchor="e", relief="sunken")
+        self.lbl_base.grid(row=0, column=1, padx=5, pady=2)
+
+        tk.Label(frame_totales, text="IVA:", bg="#ececec", font=("Arial", 9)).grid(row=1, column=0, sticky="w", padx=5)
+        self.lbl_iva = tk.Label(frame_totales, text="0.00", bg="white", font=("Courier New", 10, "bold"), width=15, anchor="e", relief="sunken")
+        self.lbl_iva.grid(row=1, column=1, padx=5, pady=2)
+
+        tk.Label(frame_totales, text="Total:", bg="#ececec", font=("Arial", 10, "bold")).grid(row=2, column=0, sticky="w", padx=5)
+        self.lbl_total = tk.Label(frame_totales, text="0.00", bg="white", font=("Courier New", 12, "bold"), fg="#990000", width=15, anchor="e", relief="sunken")
+        self.lbl_total.grid(row=2, column=1, padx=5, pady=2)
+
+        # --- ATAJOS DE TECLADO GLOBALES ---
+        root.bind("<F5>", lambda event: self.procesar_venta())
+        root.bind("<F6>", lambda event: self.cancelar_venta())
+        root.bind("<F7>", lambda event: self.imprimir_ticket())
+        root.bind("<F8>", lambda event: messagebox.showinfo("Caja", "Caja abierta"))
+        root.bind("<Escape>", lambda event: root.quit())
+
+    def agregar_producto(self, event=None):
+        codigo = self.entry_codigo.get().strip()
+        try:
+            unidades = float(self.entry_unids.get())
+        except ValueError:
+            unidades = 1.0
+
+        if not codigo:
+            return
+
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM productos WHERE codigo = ? OR nombre LIKE ?", (codigo, f"%{codigo}%"))
+        prod = cursor.fetchone()
+        conn.close()
+
+        if prod:
+            precio_base = prod["precio_base"]
+            iva = prod["iva"]
             
-            let htmlFilas = '';
-            let baseImpTot = 0;
-            let ivaTot = 0;
-            let totalGen = 0;
+            self.carrito.append({
+                "codigo": prod["codigo"],
+                "nombre": prod["nombre"],
+                "unidades": unidades,
+                "precio_base": precio_base,
+                "iva": iva
+            })
+            
+            self.entry_codigo.delete(0, tk.END)
+            self.entry_unids.delete(0, tk.END)
+            self.entry_unids.insert(0, "1.00")
+            self.actualizar_vista()
+        else:
+            messagebox.showerror("Error", "Artículo no encontrado en la base de datos.")
 
-            carrito.forEach(item => {{
-                const importeBase = item.unidades * item.precio;
-                const cuotaIva = importeBase * (item.iva / 100);
-                const importeConIva = importeBase + cuotaIva;
+    def actualizar_vista(self):
+        for row in self.tree.get_children():
+            self.tree.delete(row)
 
-                baseImpTot += importeBase;
-                ivaTot += cuotaIva;
-                totalGen += importeConIva;
+        base_total = 0.0
+        iva_total = 0.0
+        general_total = 0.0
 
-                htmlFilas += `
-                    <div class="grid grid-cols-12 tpv-row p-1 items-center">
-                        <div class="col-span-3 px-1 font-mono">${{item.codigo}}</div>
-                        <div class="col-span-5 px-1 font-medium">${{item.nombre}}</div>
-                        <div class="col-span-1 text-center">${{item.unidades.toFixed(2)}}</div>
-                        <div class="col-span-1 text-right">${{item.precio.toFixed(2)}}</div>
-                        <div class="col-span-1 text-center">0.0</div>
-                        <div class="col-span-1 text-right font-bold">${{importeConIva.toFixed(2)}}</div>
-                    </div>
-                `;
-            }});
+        for item in self.carrito:
+            imp_base = item["unidades"] * item["precio_base"]
+            cuota_iva = imp_base * (item["iva"] / 100)
+            importe_con_iva = imp_base + cuota_iva
 
-            // Mantener la fila de entrada activa al final
-            htmlFilas += `
-                <div class="grid grid-cols-12 tpv-row tpv-row-active p-1 items-center">
-                    <div class="col-span-3 px-1">
-                        <input type="text" id="input-codigo" placeholder="Escribir o escanear..." 
-                               class="w-full bg-transparent focus:outline-none font-mono text-xs" autofocus>
-                    </div>
-                    <div class="col-span-5 px-1 text-gray-400 italic">Seleccione producto...</div>
-                    <div class="col-span-1 text-center"><input type="text" id="input-unids" value="1.00" class="w-full text-center bg-transparent focus:outline-none"></div>
-                    <div class="col-span-1 text-right text-gray-400">0.00</div>
-                    <div class="col-span-1 text-center text-gray-400">0.0</div>
-                    <div class="col-span-1 text-right text-gray-400">0.00</div>
-                </div>
-            `;
+            base_total += imp_base
+            iva_total += cuota_iva
+            general_total += importe_con_iva
 
-            cuerpo.innerHTML = htmlFilas;
+            self.tree.insert("", "end", values=(
+                item["codigo"],
+                item["nombre"],
+                f"{item['unidades']:.2f}",
+                f"{item['precio_base']:.2f}",
+                "0.0",
+                f"{importe_con_iva:.2f}"
+            ))
 
-            // Reasignar eventos al nuevo input creado
-            const nuevoInput = document.getElementById('input-codigo');
-            nuevoInput.focus();
-            nuevoInput.addEventListener('keypress', arguments.callee);
+        self.lbl_visor.config(text=f"{general_total:.2f}€")
+        self.lbl_base.config(text=f"{base_total:.2f}")
+        self.lbl_iva.config(text=f"{iva_total:.2f}")
+        self.lbl_total.config(text=f"{general_total:.2f}")
 
-            document.getElementById('visor-total').innerText = totalGen.toFixed(2) + '€';
-            document.getElementById('lbl-base').innerText = baseImpTot.toFixed(2);
-            document.getElementById('lbl-iva').innerText = ivaTot.toFixed(2);
-            document.getElementById('lbl-total').innerText = totalGen.toFixed(2);
-        }}
+    def cancelar_venta(self):
+        self.carrito = []
+        self.actualizar_vista()
+        self.entry_codigo.focus()
 
-        function limpiarVenta() {{
-            carrito = [];
-            actualizarTabla();
-        }}
-    </script>
-</body>
-</html>
-"""
+    def procesar_venta(self):
+        if not self.carrito:
+            messagebox.showwarning("Aviso", "El ticket está vacío.")
+            return
+        messagebox.showinfo("Venta", "¡Venta cobrada y registrada con éxito!")
+        self.cancelar_venta()
 
-components.html(tpv_html, height=580, scrolling=False)
+    def imprimir_ticket(self):
+        if not self.carrito:
+            messagebox.showwarning("Aviso", "No hay nada que imprimir.")
+            return
+        messagebox.showinfo("Ticket", "Imprimiendo ticket en impresora por defecto...")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = TPVApp(root)
+    root.mainloop()
